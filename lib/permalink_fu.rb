@@ -16,7 +16,7 @@ module PermalinkFu
   
   def has_permalink(attr_name, permalink_field = nil)
     permalink_field ||= 'permalink'
-    after_validation { |record| record.send("#{permalink_field}=", PermalinkFu.escape(record.send(attr_name).to_s)) if record.send(permalink_field).to_s.empty? }
+    before_validation { |record| record.send("#{permalink_field}=", PermalinkFu.escape(record.send(attr_name).to_s)) if record.send(permalink_field).to_s.empty? }
   end
 end
 
