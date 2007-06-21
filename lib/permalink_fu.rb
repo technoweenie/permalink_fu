@@ -1,3 +1,4 @@
+require 'iconv'
 module PermalinkFu
   class << self
     attr_accessor :translation_to
