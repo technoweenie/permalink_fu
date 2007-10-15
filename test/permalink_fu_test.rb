@@ -2,35 +2,58 @@ require 'test/unit'
 require File.join(File.dirname(__FILE__), '../lib/permalink_fu')
 
 class MockModel
-  extend PermalinkFu
+  include PermalinkFu
+  attr_accessor :id
   attr_accessor :title
   attr_accessor :permalink
   
-  def self.before_validation(&block)
-    @@validation = block
+  def self.count(whatever, options = {})
+    if options[:conditions][1] == 'foo' || options[:conditions][1] == 'bar' || 
+      (options[:conditions][1] == 'bar-2' && options[:conditions][2] != 2)
+      1
+    else
+      0
+    end
+  end
+  
+  def self.before_validation(method)
+    @@validation = method
   end
   
   def validate
-    @@validation.call self
+    send @@validation
     permalink
   end
-  
+
+  def new_record?
+    @id.nil?
+  end
+
   has_permalink :title
 end
 
 class MockModelExtra
-  extend PermalinkFu
+  include PermalinkFu
+  attr_accessor :id
   attr_accessor :title
   attr_accessor :extra
   attr_accessor :permalink
 
-  def self.before_validation(&block)
-    @@validation = block
+  def self.count(*args)
+    0
+  end
+
+  def self.before_validation(method)
+    @@validation = method
   end
 
   def validate
-    @@validation.call self
+    send @@validation
     permalink
+  end
+  
+  def new_record?
+    !@id.nil?
   end
 
   has_permalink [:title, :extra]
@@ -67,5 +90,24 @@ class PermalinkFuTest < Test::Unit::TestCase
         assert_equal "#{to}-#{to_extra}", @m.validate
       end
     end
+  end
+  
+  def test_should_create_unique_permalink
+    @m = MockModel.new
+    @m.permalink = 'foo'
+    @m.validate
+    assert_equal 'foo-2', @m.permalink
+    
+    @m.permalink = 'bar'
+    @m.validate
+    assert_equal 'bar-3', @m.permalink
+  end
+  
+  def test_should_not_check_itself_for_unique_permalink
+    @m = MockModel.new
+    @m.id = 2
+    @m.permalink = 'bar-2'
+    @m.validate
+    assert_equal 'bar-2', @m.permalink
   end
 end

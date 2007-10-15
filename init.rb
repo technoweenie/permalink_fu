@@ -1,1 +1,1 @@
-ActiveRecord::Base.send :extend, PermalinkFu
+ActiveRecord::Base.send :include, PermalinkFu
