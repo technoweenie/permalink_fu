@@ -1,4 +1,5 @@
 require 'iconv'
+require 'digest/sha1'
 module PermalinkFu
   class << self
     attr_accessor :translation_to
@@ -17,6 +18,7 @@ module PermalinkFu
   def self.included(base)
     base.extend ClassMethods
     class << base
+      attr_accessor :permalink_options
       attr_accessor :permalink_attributes
       attr_accessor :permalink_field
     end
@@ -26,23 +28,32 @@ module PermalinkFu
     # Specifies the given field(s) as a permalink, meaning it is passed through PermalinkFu.escape and set to the permalink_field.  This
     # is done
     #
-    # class Foo < ActiveRecord::Base
-    #   # stores permalink form of #title to the #permalink attribute
-    #   has_permalink :title
-    #
-    #   # stores a permalink form of "#{category}-#{title}" to the #permalink attribute
-    #
-    #   has_permalink [:category, :title]
-    #
-    #   # stores permalink form of #title to the #category_permalink attribute
-    #   has_permalink [:category, :title], :category_permalink
-    #
+    #   class Foo < ActiveRecord::Base
+    #     # stores permalink form of #title to the #permalink attribute
+    #     has_permalink :title
     #   
-    # end
+    #     # stores a permalink form of "#{category}-#{title}" to the #permalink attribute
+    #   
+    #     has_permalink [:category, :title]
+    #   
+    #     # stores permalink form of #title to the #category_permalink attribute
+    #     has_permalink [:category, :title], :category_permalink
     #
-    def has_permalink(attr_names = [], permalink_field = 'permalink')
+    #     # add a scope
+    #     has_permalink :title, :scope => :blog_id
+    #
+    #     # add a scope and specify the permalink field name
+    #     has_permalink :title, :slug, :scope => :blog_id
+    #   end
+    #
+    def has_permalink(attr_names = [], permalink_field = nil, options = {})
+      if permalink_field.is_a?(Hash)
+        options = permalink_field
+        permalink_field = nil
+      end
       self.permalink_attributes = Array(attr_names)
-      self.permalink_field      = permalink_field
+      self.permalink_field      = permalink_field || :permalink
+      self.permalink_options    = options
       before_validation :create_unique_permalink
     end
   end
@@ -54,10 +65,15 @@ protected
     end
     base       = send(self.class.permalink_field)
     counter    = 1
+    # oh how i wish i could use a hash for conditions
     conditions = ["#{self.class.permalink_field} = ?", send(self.class.permalink_field)]
     unless new_record?
       conditions.first << " and id != ?"
       conditions       << id
+    end
+    if self.class.permalink_options[:scope]
+      conditions.first << " and #{self.class.permalink_options[:scope]} = ?"
+      conditions       << send(self.class.permalink_options[:scope])
     end
     while self.class.count(:all, :conditions => conditions) > 0
       conditions[1] = "#{base}-#{counter += 1}"
