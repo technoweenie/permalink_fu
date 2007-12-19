@@ -88,5 +88,5 @@ protected
   end
 end
 
-PermalinkFu.translation_to   = 'ascii//ignore//translit'
+PermalinkFu.translation_to   = 'ascii//translit'
 PermalinkFu.translation_from = 'utf-8'
