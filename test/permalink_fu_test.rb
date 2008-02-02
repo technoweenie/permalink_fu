@@ -6,15 +6,46 @@ class BaseModel
   attr_accessor :id
   attr_accessor :title
   attr_accessor :extra
-  attr_accessor :permalink
+  attr_reader   :permalink
   attr_accessor :foo
 
   class << self
     attr_accessor :validation
   end
+  
+  def self.generated_methods
+    @generated_methods ||= []
+  end
+  
+  def self.primary_key
+    :id
+  end
+  
+  def self.logger
+    nil
+  end
+  
+  # ripped from AR
+  def self.evaluate_attribute_method(attr_name, method_definition, method_name=attr_name)
 
-  def self.count(*args)
-    0
+    unless method_name.to_s == primary_key.to_s
+      generated_methods << method_name
+    end
+
+    begin
+      class_eval(method_definition, __FILE__, __LINE__)
+    rescue SyntaxError => err
+      generated_methods.delete(attr_name)
+      if logger
+        logger.warn "Exception occurred during reader method compilation."
+        logger.warn "Maybe #{attr_name} is not a valid Ruby identifier?"
+        logger.warn "#{err.message}"
+      end
+    end
+  end
+
+  def self.exists?(*args)
+    false
   end
 
   def self.before_validation(method)
@@ -29,15 +60,19 @@ class BaseModel
   def new_record?
     @id.nil?
   end
+  
+  def write_attribute(key, value)
+    instance_variable_set "@#{key}", value
+  end
 end
 
 class MockModel < BaseModel
-  def self.count(whatever, options = {})
-    if options[:conditions][1] == 'foo' || options[:conditions][1] == 'bar' || 
-      (options[:conditions][1] == 'bar-2' && options[:conditions][2] != 2)
-      1
+  def self.exists?(conditions)
+    if conditions[1] == 'foo'   || conditions[1] == 'bar' || 
+      (conditions[1] == 'bar-2' && conditions[2] != 2)
+      true
     else
-      0
+      false
     end
   end
 
@@ -45,11 +80,11 @@ class MockModel < BaseModel
 end
 
 class ScopedModel < BaseModel
-  def self.count(whatever, options = {})
-    if options[:conditions][1] == 'foo' && options[:conditions][2] != 5
-      1
+  def self.exists?(conditions)
+    if conditions[1] == 'foo' && conditions[2] != 5
+      true
     else
-      0
+      false
     end
   end
 
@@ -64,7 +99,8 @@ class PermalinkFuTest < Test::Unit::TestCase
   @@samples = {
     'This IS a Tripped out title!!.!1  (well/ not really)' => 'this-is-a-tripped-out-title-1-well-not-really',
     '////// meph1sto r0x ! \\\\\\' => 'meph1sto-r0x',
-    'āčēģīķļņū' => 'acegiklnu'
+    'āčēģīķļņū' => 'acegiklnu',
+    '中文測試 chinese text' => 'chinese-text'
   }
 
   @@extra = { 'some-)()()-ExtRa!/// .data==?>    to \/\/test' => 'some-extra-data-to-test' }

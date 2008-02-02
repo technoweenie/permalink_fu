@@ -6,7 +6,7 @@ module PermalinkFu
     attr_accessor :translation_from
     
     def escape(str)
-      s = Iconv.iconv(translation_to, translation_from, str).to_s
+      s = Iconv.iconv(translation_to + '//IGNORE', translation_from, str).to_s
       s.gsub!(/\W+/, ' ') # all non-word chars to spaces
       s.strip!            # ohh la la
       s.downcase!         #
@@ -55,6 +55,7 @@ module PermalinkFu
       self.permalink_field      = permalink_field || :permalink
       self.permalink_options    = options
       before_validation :create_unique_permalink
+      evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
     end
   end
   
@@ -66,7 +67,7 @@ protected
     base       = send(self.class.permalink_field)
     counter    = 1
     # oh how i wish i could use a hash for conditions
-    conditions = ["#{self.class.permalink_field} = ?", send(self.class.permalink_field)]
+    conditions = ["#{self.class.permalink_field} = ?", base]
     unless new_record?
       conditions.first << " and id != ?"
       conditions       << id
@@ -75,16 +76,14 @@ protected
       conditions.first << " and #{self.class.permalink_options[:scope]} = ?"
       conditions       << send(self.class.permalink_options[:scope])
     end
-    while self.class.count(:all, :conditions => conditions) > 0
+    while self.class.exists?(conditions)
       conditions[1] = "#{base}-#{counter += 1}"
       send("#{self.class.permalink_field}=", conditions[1])
     end
   end
 
   def create_permalink_for(attr_names)
-    attr_names.collect do |attr_name| 
-      PermalinkFu.escape(send(attr_name).to_s)
-    end.join('-')
+    attr_names.collect { |attr_name| send(attr_name).to_s } * " "
   end
 end
 
