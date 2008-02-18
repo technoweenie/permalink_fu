@@ -83,7 +83,8 @@ protected
       conditions       << send(self.class.permalink_options[:scope])
     end
     while self.class.exists?(conditions)
-      conditions[1] = "#{base[0..limit-3]}-#{counter += 1}"
+      suffix = "-#{counter += 1}"
+      conditions[1] = "#{base[0..limit-suffix.size-1]}#{suffix}"
       send("#{self.class.permalink_field}=", conditions[1])
     end
   end
