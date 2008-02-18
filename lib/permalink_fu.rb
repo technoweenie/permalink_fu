@@ -57,7 +57,7 @@ module PermalinkFu
         permalink_field = nil
       end
       self.permalink_attributes = Array(attr_names)
-      self.permalink_field      = permalink_field || :permalink
+      self.permalink_field      = (permalink_field || 'permalink').to_s
       self.permalink_options    = options
       before_validation :create_unique_permalink
       evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
@@ -69,8 +69,9 @@ protected
     if send(self.class.permalink_field).to_s.empty?
       send("#{self.class.permalink_field}=", create_permalink_for(self.class.permalink_attributes))
     end
-    base       = send(self.class.permalink_field)
-    counter    = 1
+    limit   = self.class.columns_hash[self.class.permalink_field].limit
+    base    = send("#{self.class.permalink_field}=", send(self.class.permalink_field)[0..limit - 1])
+    counter = 1
     # oh how i wish i could use a hash for conditions
     conditions = ["#{self.class.permalink_field} = ?", base]
     unless new_record?
@@ -82,7 +83,7 @@ protected
       conditions       << send(self.class.permalink_options[:scope])
     end
     while self.class.exists?(conditions)
-      conditions[1] = "#{base}-#{counter += 1}"
+      conditions[1] = "#{base[0..limit-3]}-#{counter += 1}"
       send("#{self.class.permalink_field}=", conditions[1])
     end
   end

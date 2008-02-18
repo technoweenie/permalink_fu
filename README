@@ -9,3 +9,6 @@ This is a simple plugin extracted from Mephisto for creating permalinks from att
 This will escape the title, making it fit to use in a URL in the after_validation callback.
 
 Use PermalinkFu.escape to escape a string manually if you like.
+
+If you're having issues with Iconv, you can manually tweak PermalinkFu.translation_to PermalinkFu.translation_from.
+These are set to nil if Iconv is not loaded.  You can also manually set them to nil if you don't want to use iconv.

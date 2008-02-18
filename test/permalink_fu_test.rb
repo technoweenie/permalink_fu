@@ -1,7 +1,14 @@
 require 'test/unit'
 require File.join(File.dirname(__FILE__), '../lib/permalink_fu')
 
+class FauxColumn < Struct.new(:limit)
+end
+
 class BaseModel
+  def self.columns_hash
+    @columns_hash ||= {'permalink' => FauxColumn.new(100)}
+  end
+
   include PermalinkFu
   attr_accessor :id
   attr_accessor :title
@@ -158,5 +165,25 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.permalink = 'foo'
     @m.validate
     assert_equal 'foo', @m.permalink
+  end
+  
+  def test_should_limit_permalink
+    @old = MockModel.columns_hash['permalink'].limit
+    MockModel.columns_hash['permalink'].limit = 2
+    @m   = MockModel.new
+    @m.title = 'BOO'
+    assert_equal 'bo', @m.validate
+  ensure
+    MockModel.columns_hash['permalink'].limit = @old
+  end
+  
+  def test_should_limit_unique_permalink
+    @old = MockModel.columns_hash['permalink'].limit
+    MockModel.columns_hash['permalink'].limit = 3
+    @m   = MockModel.new
+    @m.title = 'foo'
+    assert_equal 'f-2', @m.validate
+  ensure
+    MockModel.columns_hash['permalink'].limit = @old
   end
 end
