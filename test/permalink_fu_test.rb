@@ -98,6 +98,44 @@ class ScopedModel < BaseModel
   has_permalink :title, :scope => :foo
 end
 
+class ProcConditionModel < BaseModel
+  def self.exists?(conditions)
+    if conditions[1] == 'foo' && conditions[2] != 5
+      true
+    else
+      false
+    end
+  end
+
+  has_permalink :title, :if => Proc.new { |obj| false }
+end
+
+class MethodConditionModel < BaseModel
+  def self.exists?(conditions)
+    if conditions[1] == 'foo' && conditions[2] != 5
+      true
+    else
+      false
+    end
+  end
+
+  has_permalink :title, :if => :false_method
+  
+  def false_method; false; end
+end
+
+class StringConditionModel < BaseModel
+  def self.exists?(conditions)
+    if conditions[1] == 'foo' && conditions[2] != 5
+      true
+    else
+      false
+    end
+  end
+
+  has_permalink :title, :if => 'false'
+end
+
 class MockModelExtra < BaseModel
   has_permalink [:title, :extra]
 end
@@ -185,5 +223,26 @@ class PermalinkFuTest < Test::Unit::TestCase
     assert_equal 'f-2', @m.validate
   ensure
     MockModel.columns_hash['permalink'].limit = @old
+  end
+  
+  def test_should_abide_by_proc_condition
+    @m = ProcConditionModel.new
+    @m.title = 'dont make me a permalink'
+    @m.validate
+    assert_nil @m.permalink
+  end
+  
+  def test_should_abide_by_method_condition
+    @m = MethodConditionModel.new
+    @m.title = 'dont make me a permalink'
+    @m.validate
+    assert_nil @m.permalink
+  end
+  
+  def test_should_abide_by_string_condition
+    @m = StringConditionModel.new
+    @m.title = 'dont make me a permalink'
+    @m.validate
+    assert_nil @m.permalink
   end
 end

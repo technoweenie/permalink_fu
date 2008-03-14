@@ -66,6 +66,7 @@ module PermalinkFu
   
 protected
   def create_unique_permalink
+    return unless should_run_callback?
     if send(self.class.permalink_field).to_s.empty?
       send("#{self.class.permalink_field}=", create_permalink_for(self.class.permalink_attributes))
     end
@@ -91,6 +92,36 @@ protected
 
   def create_permalink_for(attr_names)
     attr_names.collect { |attr_name| send(attr_name).to_s } * " "
+  end
+
+private
+  def should_run_callback?
+    if self.class.permalink_options[:if]
+      evaluate_method(self.class.permalink_options[:if], self)
+    elsif self.class.permalink_options[:unless]
+      !evaluate_method(self.class.permalink_options[:unless], self)
+    else
+      true
+    end
+  end
+
+  def evaluate_method(method, object)
+    case method
+    when Symbol
+      object.send(method)
+    when String
+      eval(method, object.instance_eval { binding })
+    when Proc, Method
+      method.call(object)
+    else
+      if method.respond_to?(kind)
+        method.send(kind, object)
+      else
+        raise ArgumentError,
+          "Callbacks must be a symbol denoting the method to call, a string to be evaluated, " +
+          "a block to be invoked, or an object responding to the callback method."
+      end
+    end
   end
 end
 
