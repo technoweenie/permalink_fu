@@ -19,5 +19,5 @@ These are set to nil if Iconv is not loaded.  You can also manually set them to 
 	  has_permalink :title, :if => Proc.new { |article| article.needs_permalink? }
 	end
 
-Use the :if or :when options to specify a Proc, method, or string to be called or evaluated. The permalink
+Use the :if or :unless options to specify a Proc, method, or string to be called or evaluated. The permalink
 will only be generated if the option evaluates to true.
