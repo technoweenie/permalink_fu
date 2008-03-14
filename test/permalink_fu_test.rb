@@ -98,42 +98,32 @@ class ScopedModel < BaseModel
   has_permalink :title, :scope => :foo
 end
 
-class ProcConditionModel < BaseModel
-  def self.exists?(conditions)
-    if conditions[1] == 'foo' && conditions[2] != 5
-      true
-    else
-      false
-    end
-  end
-
+class IfProcConditionModel < BaseModel
   has_permalink :title, :if => Proc.new { |obj| false }
 end
 
-class MethodConditionModel < BaseModel
-  def self.exists?(conditions)
-    if conditions[1] == 'foo' && conditions[2] != 5
-      true
-    else
-      false
-    end
-  end
-
+class IfMethodConditionModel < BaseModel
   has_permalink :title, :if => :false_method
   
   def false_method; false; end
 end
 
-class StringConditionModel < BaseModel
-  def self.exists?(conditions)
-    if conditions[1] == 'foo' && conditions[2] != 5
-      true
-    else
-      false
-    end
-  end
-
+class IfStringConditionModel < BaseModel
   has_permalink :title, :if => 'false'
+end
+
+class UnlessProcConditionModel < BaseModel
+  has_permalink :title, :unless => Proc.new { |obj| false }
+end
+
+class UnlessMethodConditionModel < BaseModel
+  has_permalink :title, :unless => :false_method
+  
+  def false_method; false; end
+end
+
+class UnlessStringConditionModel < BaseModel
+  has_permalink :title, :unless => 'false'
 end
 
 class MockModelExtra < BaseModel
@@ -225,24 +215,45 @@ class PermalinkFuTest < Test::Unit::TestCase
     MockModel.columns_hash['permalink'].limit = @old
   end
   
-  def test_should_abide_by_proc_condition
-    @m = ProcConditionModel.new
+  def test_should_abide_by_if_proc_condition
+    @m = IfProcConditionModel.new
     @m.title = 'dont make me a permalink'
     @m.validate
     assert_nil @m.permalink
   end
   
-  def test_should_abide_by_method_condition
-    @m = MethodConditionModel.new
+  def test_should_abide_by_if_method_condition
+    @m = IfMethodConditionModel.new
     @m.title = 'dont make me a permalink'
     @m.validate
     assert_nil @m.permalink
   end
   
-  def test_should_abide_by_string_condition
-    @m = StringConditionModel.new
+  def test_should_abide_by_if_string_condition
+    @m = IfStringConditionModel.new
     @m.title = 'dont make me a permalink'
     @m.validate
     assert_nil @m.permalink
+  end
+  
+  def test_should_abide_by_unless_proc_condition
+    @m = UnlessProcConditionModel.new
+    @m.title = 'make me a permalink'
+    @m.validate
+    assert_not_nil @m.permalink
+  end
+  
+  def test_should_abide_by_unless_method_condition
+    @m = UnlessMethodConditionModel.new
+    @m.title = 'make me a permalink'
+    @m.validate
+    assert_not_nil @m.permalink
+  end
+  
+  def test_should_abide_by_unless_string_condition
+    @m = UnlessStringConditionModel.new
+    @m.title = 'make me a permalink'
+    @m.validate
+    assert_not_nil @m.permalink
   end
 end

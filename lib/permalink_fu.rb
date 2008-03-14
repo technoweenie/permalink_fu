@@ -96,16 +96,23 @@ protected
 
 private
   def should_create_permalink?
-    condition = self.class.permalink_options[:if] || self.class.permalink_options[:unless]
-    case condition
-    when nil
+    if self.class.permalink_options[:if]
+      evaluate_method(self.class.permalink_options[:if])
+    elsif self.class.permalink_options[:unless]
+      !evaluate_method(self.class.permalink_options[:unless])
+    else
       true
+    end
+  end
+
+  def evaluate_method(method)
+    case method
     when Symbol
-      send(condition)
+      send(method)
     when String
-      eval(condition, instance_eval { binding })
+      eval(method, instance_eval { binding })
     when Proc, Method
-      condition.call(self)
+      method.call(self)
     end
   end
 end
