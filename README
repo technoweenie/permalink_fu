@@ -12,3 +12,12 @@ Use PermalinkFu.escape to escape a string manually if you like.
 
 If you're having issues with Iconv, you can manually tweak PermalinkFu.translation_to PermalinkFu.translation_from.
 These are set to nil if Iconv is not loaded.  You can also manually set them to nil if you don't want to use iconv.
+
+[Added 3.13.2008 by Pat Nakajima] You can now add conditions to #has_permalink like so:
+
+	class Article < ActiveRecord::Base
+	  has_permalink :title, :if => Proc.new { |article| article.needs_permalink? }
+	end
+
+Use the :if or :when options to specify a Proc, method, or string to be called or evaluated. The permalink
+will only be generated if the option evaluates to true.
