@@ -12,10 +12,10 @@ module PermalinkFu
     
     def escape(str)
       s = ((translation_to && translation_from) ? Iconv.iconv(translation_to, translation_from, str) : str).to_s
-      s.gsub!(/\W+/, ' ') # all non-word chars to spaces
+      s.gsub!(/[^\w -]+/, '') # strip unwanted characters
       s.strip!            # ohh la la
       s.downcase!         #
-      s.gsub!(/\ +/, '-') # spaces to dashes, preferred separator char everywhere
+      s.gsub!(/[ -]+/, '-') # separate by single dashes
       s
     end
   end
