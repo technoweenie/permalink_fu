@@ -154,6 +154,14 @@ class PermalinkFuTest < Test::Unit::TestCase
       assert_equal to, @m.validate
     end
   end
+  
+  def test_should_escape_activerecord_model_with_existing_permalink
+    @m = MockModel.new
+    @@samples.each do |from, to|
+      @m.title = 'whatever'; @m.permalink = from
+      assert_equal to, @m.validate
+    end
+  end
 
   def test_multiple_attribute_permalink
     @m = MockModelExtra.new
