@@ -80,8 +80,12 @@ protected
       conditions       << id
     end
     if self.class.permalink_options[:scope]
-      conditions.first << " and #{self.class.permalink_options[:scope]} = ?"
-      conditions       << send(self.class.permalink_options[:scope])
+      scopes = [self.class.permalink_options[:scope]]
+      scopes.flatten!
+      scopes.each do |scope|
+        conditions.first << " and #{scope} = ?"
+        conditions       << send(scope)
+      end
     end
     while self.class.exists?(conditions)
       suffix = "-#{counter += 1}"
