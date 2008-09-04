@@ -76,7 +76,11 @@ module PermalinkFu
     end
 
     def setup_permalink_fu
-      before_validation :create_unique_permalink if permalink_options[:unique]
+      if permalink_options[:unique]
+        before_validation :create_unique_permalink
+      else
+        before_validation :create_common_permalink
+      end
       class << self
         alias_method :define_attribute_methods_without_permalinks, :define_attribute_methods
         alias_method :define_attribute_methods, :define_attribute_methods_with_permalinks
@@ -94,13 +98,19 @@ module PermalinkFu
   # This contains instance methods for ActiveRecord models that have permalinks.
   module InstanceMethods
   protected
-    def create_unique_permalink
+    def create_common_permalink
       return unless should_create_permalink?
       if send(self.class.permalink_field).to_s.empty?
         send("#{self.class.permalink_field}=", create_permalink_for(self.class.permalink_attributes))
       end
       limit   = self.class.columns_hash[self.class.permalink_field].limit
       base    = send("#{self.class.permalink_field}=", send(self.class.permalink_field)[0..limit - 1])
+      [limit, base]
+    end
+
+    def create_unique_permalink
+      limit, base = create_common_permalink
+      return if limit.nil?
       counter = 1
       # oh how i wish i could use a hash for conditions
       conditions = ["#{self.class.permalink_field} = ?", base]
