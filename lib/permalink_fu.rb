@@ -75,7 +75,6 @@ module PermalinkFu
       base.send :include, InstanceMethods
     end
 
-  protected
     def setup_permalink_fu
       before_validation :create_unique_permalink if permalink_options[:unique]
       class << self
