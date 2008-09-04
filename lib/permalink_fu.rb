@@ -46,6 +46,9 @@ module PermalinkFu
     #
     #     # add a scope and specify the permalink field name
     #     has_permalink :title, :slug, :scope => :blog_id
+    #
+    #     # do not bother checking for a unique scope
+    #     has_permalink :title, :unique => false
     #   end
     #
     def has_permalink(attr_names = [], permalink_field = nil, options = {})
@@ -56,7 +59,7 @@ module PermalinkFu
       extend ClassMethods
       self.permalink_attributes = Array(attr_names)
       self.permalink_field      = (permalink_field || 'permalink').to_s
-      self.permalink_options    = options
+      self.permalink_options    = {:unique => true}.update(options)
       setup_permalink_fu
     end
   end
@@ -74,7 +77,7 @@ module PermalinkFu
 
   protected
     def setup_permalink_fu
-      before_validation :create_unique_permalink
+      before_validation :create_unique_permalink if permalink_options[:unique]
       evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
     end
   end

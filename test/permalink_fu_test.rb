@@ -60,7 +60,7 @@ class BaseModel
   end
 
   def validate
-    send self.class.validation
+    send self.class.validation if self.class.validation
     permalink
   end
   
@@ -84,6 +84,14 @@ class MockModel < BaseModel
   end
 
   has_permalink :title
+end
+
+class CommonMockModel < BaseModel
+  def self.exists?(conditions)
+    false # oh noes
+  end
+
+  has_permalink :title, :unique => false
 end
 
 class ScopedModel < BaseModel
@@ -182,6 +190,13 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.permalink = 'bar'
     @m.validate
     assert_equal 'bar-3', @m.permalink
+  end
+  
+  def test_should_common_permalink_if_unique_is_false
+    @m = CommonMockModel.new
+    @m.permalink = 'foo'
+    @m.validate
+    assert_equal 'foo', @m.permalink
   end
   
   def test_should_not_check_itself_for_unique_permalink
