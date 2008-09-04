@@ -73,11 +73,15 @@ module PermalinkFu
         attr_accessor :permalink_field
       end
       base.send :include, InstanceMethods
+      base.alias_method_chain(:define_attribute_methods, :permalinks)
     end
 
   protected
     def setup_permalink_fu
       before_validation :create_unique_permalink if permalink_options[:unique]
+    end
+
+    def define_attribute_methods_with_permalinks
       evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
     end
   end

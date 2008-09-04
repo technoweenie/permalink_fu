@@ -31,7 +31,11 @@ class BaseModel
   def self.logger
     nil
   end
-  
+
+  def define_attribute_methods
+    
+  end
+
   # ripped from AR
   def self.evaluate_attribute_method(attr_name, method_definition, method_name=attr_name)
 
