@@ -1,12 +1,25 @@
 require 'test/unit'
 require File.join(File.dirname(__FILE__), '../lib/permalink_fu')
 
+begin
+  require 'rubygems'
+  require 'ruby-debug'
+  Debugger.start
+rescue LoadError
+  puts "no ruby debugger"
+end
+
+
 class FauxColumn < Struct.new(:limit)
 end
 
 class BaseModel
   def self.columns_hash
     @columns_hash ||= {'permalink' => FauxColumn.new(100)}
+  end
+
+  def self.inherited(base)
+    subclasses << base
   end
 
   include PermalinkFu
@@ -17,9 +30,10 @@ class BaseModel
   attr_accessor :foo
 
   class << self
-    attr_accessor :validation
+    attr_accessor :validation, :subclasses
   end
-  
+  self.subclasses = []
+
   def self.generated_methods
     @generated_methods ||= []
   end
@@ -32,8 +46,9 @@ class BaseModel
     nil
   end
 
-  def define_attribute_methods
-    
+  def self.define_attribute_methods
+    return unless generated_methods.empty?
+    true
   end
 
   # ripped from AR
@@ -141,6 +156,9 @@ end
 class MockModelExtra < BaseModel
   has_permalink [:title, :extra]
 end
+
+# trying to be like ActiveRecord, define the attribute methods manually
+BaseModel.subclasses.each { |c| c.send :define_attribute_methods }
 
 class PermalinkFuTest < Test::Unit::TestCase
   @@samples = {
