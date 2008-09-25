@@ -22,7 +22,7 @@ class BaseModel
     subclasses << base
   end
 
-  include PermalinkFu
+  extend PermalinkFu::PluginMethods
   attr_accessor :id
   attr_accessor :title
   attr_accessor :extra

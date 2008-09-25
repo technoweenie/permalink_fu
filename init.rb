@@ -1,1 +1,1 @@
-ActiveRecord::Base.send :include, PermalinkFu
+ActiveRecord::Base.extend PermalinkFu::PluginMethods

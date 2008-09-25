@@ -21,10 +21,6 @@ module PermalinkFu
       result
     end
   end
-  
-  def self.included(base)
-    base.extend PluginMethods
-  end
 
   # This is the plugin method available on all ActiveRecord models.
   module PluginMethods
@@ -57,32 +53,33 @@ module PermalinkFu
         options = permalink_field
         permalink_field = nil
       end
-      extend ClassMethods
-      self.permalink_attributes = Array(attr_names)
-      self.permalink_field      = (permalink_field || 'permalink').to_s
-      self.permalink_options    = {:unique => true}.update(options)
-      setup_permalink_fu
+      ClassMethods.setup_permalink_fu_on self do
+        self.permalink_attributes = Array(attr_names)
+        self.permalink_field      = (permalink_field || 'permalink').to_s
+        self.permalink_options    = {:unique => true}.update(options)
+      end
     end
   end
 
   # Contains class methods for ActiveRecord models that have permalinks
   module ClassMethods
-    def self.extended(base)
+    def self.setup_permalink_fu_on(base)
+      base.extend self
       class << base
         attr_accessor :permalink_options
         attr_accessor :permalink_attributes
         attr_accessor :permalink_field
       end
       base.send :include, InstanceMethods
-    end
 
-    def setup_permalink_fu
-      if permalink_options[:unique]
-        before_validation :create_unique_permalink
+      yield
+
+      if base.permalink_options[:unique]
+        base.before_validation :create_unique_permalink
       else
-        before_validation :create_common_permalink
+        base.before_validation :create_common_permalink
       end
-      class << self
+      class << base
         alias_method :define_attribute_methods_without_permalinks, :define_attribute_methods
         alias_method :define_attribute_methods, :define_attribute_methods_with_permalinks
       end
