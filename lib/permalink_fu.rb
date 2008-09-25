@@ -11,13 +11,14 @@ module PermalinkFu
     attr_accessor :translation_from
 
     # This method does the actual permalink escaping.
-    def escape(str)
-      s = ((translation_to && translation_from) ? Iconv.iconv(translation_to, translation_from, str) : str).to_s
-      s.gsub!(/[^\w -]+/, '') # strip unwanted characters
-      s.strip!                # ohh la la
-      s.downcase!             #
-      s.gsub!(/[ -]+/, '-')   # separate by single dashes
-      s
+    def escape(string)
+      result = ((translation_to && translation_from) ? Iconv.iconv(translation_to, translation_from, string) : string).to_s
+      result.gsub!(/[^\x00-\x7F]+/, '') # Remove anything non-ASCII entirely (e.g. diacritics).
+      result.gsub!(/[^\w_ \-]+/i,   '') # Remove unwanted chars.
+      result.gsub!(/[ \-]+/i,      '-') # No more than one of the separator in a row.
+      result.gsub!(/^\-|\-$/i,      '') # Remove leading/trailing separator.
+      result.downcase!
+      result
     end
   end
   
