@@ -137,12 +137,20 @@ module PermalinkFu
 
   private
     def should_create_permalink?
+      return false unless permalink_fields_changed?
       if self.class.permalink_options[:if]
         evaluate_method(self.class.permalink_options[:if])
       elsif self.class.permalink_options[:unless]
         !evaluate_method(self.class.permalink_options[:unless])
       else
         true
+      end
+    end
+
+    def permalink_fields_changed?
+      self.class.permalink_attributes.any? do |attribute|
+        changed_method = "#{attribute}_changed?"
+        respond_to?(changed_method) ? send(changed_method) : true
       end
     end
 

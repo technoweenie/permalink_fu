@@ -137,6 +137,16 @@ class OverrideModel < BaseModel
   end
 end
 
+class ChangedModel < BaseModel
+  has_permalink :title  
+  def title_changed?; true; end
+end
+
+class NoChangeModel < BaseModel
+  has_permalink :title  
+  def title_changed?; false; end
+end
+
 class IfProcConditionModel < BaseModel
   has_permalink :title, :if => Proc.new { |obj| false }
 end
@@ -204,7 +214,7 @@ class PermalinkFuTest < Test::Unit::TestCase
       assert_equal to, @m.validate
     end
   end
-
+  
   def test_multiple_attribute_permalink
     @m = MockModelExtra.new
     @@samples.each do |from, to|
@@ -246,7 +256,7 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.permalink = 'foo'
     @m.validate
     assert_equal 'foo-2', @m.permalink
-
+  
     @m.foo = 5
     @m.permalink = 'foo'
     @m.validate
@@ -320,8 +330,29 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.write_attribute(:permalink, 'the permalink')
     assert_not_equal @m.permalink, @m.read_attribute(:permalink)
   end
-
+  
   def test_should_create_permalink_from_attribute_not_attribute_accessor
+    @m = OverrideModel.new
+    @m.title = 'the permalink'
+    @m.validate
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+  
+  def test_should_not_update_permalink_unless_field_changed
+    @m = NoChangeModel.new
+    @m.title = 'the permalink'
+    @m.validate
+    assert_nil @m.read_attribute(:permalink)
+  end
+  
+  def test_should_update_permalink_if_field_changed
+    @m = OverrideModel.new
+    @m.title = 'the permalink'
+    @m.validate
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+  
+  def test_should_update_permalink_if_changed_method_does_not_exist
     @m = OverrideModel.new
     @m.title = 'the permalink'
     @m.validate
