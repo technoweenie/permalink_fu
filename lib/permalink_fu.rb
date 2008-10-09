@@ -146,7 +146,8 @@ module PermalinkFu
 
   private
     def should_create_permalink?
-      return false unless permalink_fields_changed?
+      existing_value = send("#{self.class.permalink_field}")
+      return false unless permalink_fields_changed? || existing_value.nil? || existing_value.empty?
       if self.class.permalink_options[:if]
         evaluate_method(self.class.permalink_options[:if])
       elsif self.class.permalink_options[:unless]

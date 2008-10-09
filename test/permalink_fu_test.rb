@@ -349,8 +349,9 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_not_update_permalink_unless_field_changed
     @m = NoChangeModel.new
     @m.title = 'the permalink'
+    @m.permalink = 'unchanged'
     @m.validate
-    assert_nil @m.read_attribute(:permalink)
+    assert_equal 'unchanged', @m.read_attribute(:permalink)
   end
   
   def test_should_update_permalink_if_field_changed
@@ -363,6 +364,14 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_update_permalink_if_changed_method_does_not_exist
     @m = OverrideModel.new
     @m.title = 'the permalink'
+    @m.validate
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+
+  def test_should_update_permalink_if_the_existing_permalink_is_nil
+    @m = NoChangeModel.new
+    @m.title = 'the permalink'
+    @m.permalink = nil
     @m.validate
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
