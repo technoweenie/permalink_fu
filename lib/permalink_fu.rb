@@ -121,11 +121,14 @@ module PermalinkFu
         conditions       << id
       end
       if self.class.permalink_options[:scope]
-        scopes = [self.class.permalink_options[:scope]]
-        scopes.flatten!
-        scopes.each do |scope|
-          conditions.first << " and #{scope} = ?"
-          conditions       << send(scope)
+        [self.class.permalink_options[:scope]].flatten.each do |scope|
+          value = send(scope)
+          if value
+            conditions.first << " and #{scope} = ?"
+            conditions       << send(scope)
+          else
+            conditions.first << " and #{scope} IS NULL"
+          end
         end
       end
       while self.class.exists?(conditions)

@@ -129,6 +129,14 @@ class ScopedModel < BaseModel
   has_permalink :title, :scope => :foo
 end
 
+class ScopedModelForNilScope < BaseModel
+  def self.exists?(conditions)
+    (conditions[0] == 'permalink = ? and foo IS NULL') ? (conditions[1] == 'ack') : false
+  end
+
+  has_permalink :title, :scope => :foo
+end
+
 class OverrideModel < BaseModel
   has_permalink :title
   
@@ -357,5 +365,19 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.title = 'the permalink'
     @m.validate
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+  
+  def test_should_work_correctly_for_scoped_fields_with_nil_value
+    s1 = ScopedModelForNilScope.new
+    s1.title = 'ack'
+    s1.foo = 3
+    s1.validate
+    assert_equal 'ack', s1.permalink
+    
+    s2 = ScopedModelForNilScope.new
+    s2.title = 'ack'
+    s2.foo = nil
+    s2.validate
+    assert_equal 'ack-2', s2.permalink
   end
 end
