@@ -192,14 +192,14 @@ BaseModel.subclasses.each { |c| c.send :define_attribute_methods }
 
 class PermalinkFuTest < Test::Unit::TestCase
   @@samples = {
-    'This IS a Tripped out title!!.!1  (well/ not really)' => 'this-is-a-tripped-out-title1-well-not-really',
-    '////// meph1sto r0x ! \\\\\\' => 'meph1sto-r0x',
-    'āčēģīķļņū' => 'acegiklnu',
-    '中文測試 chinese text' => 'chinese-text',
-    'fööbär' => 'foobar'
+    'This IS a Tripped out title!!.!1  (well/ not really)'.freeze => 'this-is-a-tripped-out-title1-well-not-really'.freeze,
+    '////// meph1sto r0x ! \\\\\\'.freeze => 'meph1sto-r0x'.freeze,
+    'āčēģīķļņū'.freeze => 'acegiklnu'.freeze,
+    '中文測試 chinese text'.freeze => 'chinese-text'.freeze,
+    'fööbär'.freeze => 'foobar'.freeze
   }
 
-  @@extra = { 'some-)()()-ExtRa!/// .data==?>    to \/\/test' => 'some-extra-data-to-test' }
+  @@extra = { 'some-)()()-ExtRa!/// .data==?>    to \/\/test'.freeze => 'some-extra-data-to-test'.freeze }
 
   def test_should_escape_permalinks
     @@samples.each do |from, to|
