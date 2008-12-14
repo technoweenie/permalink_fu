@@ -12,6 +12,16 @@ module PermalinkFu
 
     # This method does the actual permalink escaping.
     def escape(string)
+      # replace special chars for equivalent
+      string.gsub!(/[áàäâå]/, 'a')
+      string.gsub!(/[éèëê]/, 'e')
+      string.gsub!(/[íìïî]/, 'i')
+      string.gsub!(/[óòöô]/, 'o')
+      string.gsub!(/[úùüû]/, 'u')
+      string.gsub!(/[ýÿ]/, 'y')
+      string.gsub!(/[ñ]/, 'n')
+      string.gsub!(/[ç]/, 'c')
+      
       result = ((translation_to && translation_from) ? Iconv.iconv(translation_to, translation_from, string) : string).to_s
       result.gsub!(/[^\x00-\x7F]+/, '') # Remove anything non-ASCII entirely (e.g. diacritics).
       result.gsub!(/[^\w_ \-]+/i,   '') # Remove unwanted chars.
