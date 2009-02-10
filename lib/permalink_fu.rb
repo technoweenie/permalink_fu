@@ -93,7 +93,7 @@ module PermalinkFu
 
     def define_attribute_methods_with_permalinks
       if value = define_attribute_methods_without_permalinks
-        evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, new_value ? PermalinkFu.escape(new_value) : nil);end", "#{self.permalink_field}="
+        evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, new_value.blank? ? nil : PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
       end
       value
     end
@@ -147,7 +147,7 @@ module PermalinkFu
   private
     def should_create_permalink?
       existing_value = send("#{self.class.permalink_field}")
-      return false unless permalink_fields_changed? || existing_value.nil? || existing_value.empty?
+      return false unless permalink_fields_changed? || existing_value.blank?
       if self.class.permalink_options[:if]
         evaluate_method(self.class.permalink_options[:if])
       elsif self.class.permalink_options[:unless]

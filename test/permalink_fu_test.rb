@@ -9,6 +9,8 @@ rescue LoadError
   puts "no ruby debugger"
 end
 
+gem 'activesupport'
+require 'active_support/core_ext/blank'
 
 class FauxColumn < Struct.new(:limit)
 end
@@ -372,6 +374,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = NoChangeModel.new
     @m.title = 'the permalink'
     @m.permalink = nil
+    @m.validate
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+
+  def test_should_update_permalink_if_the_existing_permalink_is_blank
+    @m = NoChangeModel.new
+    @m.title = 'the permalink'
+    @m.permalink = ''
     @m.validate
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
