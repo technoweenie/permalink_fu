@@ -93,7 +93,7 @@ module PermalinkFu
 
     def define_attribute_methods_with_permalinks
       if value = define_attribute_methods_without_permalinks
-        evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, new_value.blank? ? nil : PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
+        evaluate_attribute_method permalink_field, "def #{self.permalink_field}=(new_value);write_attribute(:#{self.permalink_field}, new_value.blank? ? '' : PermalinkFu.escape(new_value));end", "#{self.permalink_field}="
       end
       value
     end
@@ -104,8 +104,11 @@ module PermalinkFu
   protected
     def create_common_permalink
       return unless should_create_permalink?
-      if read_attribute(self.class.permalink_field).to_s.empty?
+      if read_attribute(self.class.permalink_field).blank?
         send("#{self.class.permalink_field}=", create_permalink_for(self.class.permalink_attributes))
+      end
+      if read_attribute(self.class.permalink_field).blank?
+        send("#{self.class.permalink_field}=", PermalinkFu.random_permalink)
       end
       limit   = self.class.columns_hash[self.class.permalink_field].limit
       base    = send("#{self.class.permalink_field}=", read_attribute(self.class.permalink_field)[0..limit - 1])

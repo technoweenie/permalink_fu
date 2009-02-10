@@ -385,6 +385,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.validate
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
+
+  def test_should_update_permalink_if_the_title_is_nil
+    @m = NoChangeModel.new
+    @m.title = nil
+    @m.validate
+    assert_not_nil @m.read_attribute(:permalink)
+    assert @m.read_attribute(:permalink).size > 0
+  end
   
   def test_should_work_correctly_for_scoped_fields_with_nil_value
     s1 = ScopedModelForNilScope.new
