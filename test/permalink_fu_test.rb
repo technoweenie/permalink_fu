@@ -409,6 +409,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     assert_equal "old-title", @m.read_attribute(:permalink)
   end
 
+  def test_should_not_update_permalink_if_already_set_even_if_title_changed
+    @m = ChangedModel.new
+    @m.permalink = "old-permalink"
+    @m.title = "new title"
+    @m.validate
+    assert_equal "old-permalink", @m.read_attribute(:permalink)
+  end
+
   def test_should_update_permalink_every_time_the_title_is_changed
     @m = ChangedWithUpdateModel.new
     @m.title = "old title"
