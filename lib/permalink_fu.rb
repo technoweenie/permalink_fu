@@ -52,6 +52,11 @@ module PermalinkFu
     #
     #     # do not bother checking for a unique scope
     #     has_permalink :title, :unique => false
+    #
+    #     # update the permalink every time the attribute(s) change
+    #     # (relies on _changed? methods to function effectively)
+    #     has_permalink :title, :update => true
+    #
     #   end
     #
     def has_permalink(attr_names = [], permalink_field = nil, options = {})
@@ -104,7 +109,7 @@ module PermalinkFu
   protected
     def create_common_permalink
       return unless should_create_permalink?
-      if read_attribute(self.class.permalink_field).blank?
+      if read_attribute(self.class.permalink_field).blank? || self.class.permalink_options[:update]
         send("#{self.class.permalink_field}=", create_permalink_for(self.class.permalink_attributes))
       end
       if read_attribute(self.class.permalink_field).blank?

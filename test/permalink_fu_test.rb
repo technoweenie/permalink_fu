@@ -157,6 +157,11 @@ class NoChangeModel < BaseModel
   def title_changed?; false; end
 end
 
+class ChangedWithUpdateModel < BaseModel
+  has_permalink :title, :update => true 
+  def title_changed?; true; end
+end
+
 class IfProcConditionModel < BaseModel
   has_permalink :title, :if => Proc.new { |obj| false }
 end
@@ -392,6 +397,26 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.validate
     assert_not_nil @m.read_attribute(:permalink)
     assert @m.read_attribute(:permalink).size > 0
+  end
+
+  def test_should_update_permalink_the_first_time_the_title_is_set
+    @m = ChangedModel.new
+    @m.title = "old title"
+    @m.validate
+    assert_equal "old-title", @m.read_attribute(:permalink)
+    @m.title = "new title"
+    @m.validate
+    assert_equal "old-title", @m.read_attribute(:permalink)
+  end
+
+  def test_should_update_permalink_every_time_the_title_is_changed
+    @m = ChangedWithUpdateModel.new
+    @m.title = "old title"
+    @m.validate
+    assert_equal "old-title", @m.read_attribute(:permalink)
+    @m.title = "new title"
+    @m.validate
+    assert_equal "new-title", @m.read_attribute(:permalink)
   end
   
   def test_should_work_correctly_for_scoped_fields_with_nil_value
