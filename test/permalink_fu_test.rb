@@ -111,6 +111,26 @@ class MockModel < BaseModel
   has_permalink :title
 end
 
+class PermalinkChangeableMockModel < BaseModel
+  def self.exists?(conditions)
+    if conditions[1] == 'foo'
+      true
+    else
+      false
+    end
+  end
+
+  has_permalink :title
+
+  def permalink_changed?
+    @permalink_changed
+  end
+
+  def permalink_will_change!
+    @permalink_changed = true
+  end
+end
+
 class CommonMockModel < BaseModel
   def self.exists?(conditions)
     false # oh noes
@@ -147,19 +167,19 @@ class OverrideModel < BaseModel
   end
 end
 
-class ChangedModel < BaseModel
+class ChangedWithoutUpdateModel < BaseModel
   has_permalink :title  
   def title_changed?; true; end
-end
-
-class NoChangeModel < BaseModel
-  has_permalink :title  
-  def title_changed?; false; end
 end
 
 class ChangedWithUpdateModel < BaseModel
   has_permalink :title, :update => true 
   def title_changed?; true; end
+end
+
+class NoChangeModel < BaseModel
+  has_permalink :title, :update => true
+  def title_changed?; false; end
 end
 
 class IfProcConditionModel < BaseModel
@@ -239,13 +259,26 @@ class PermalinkFuTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_should_create_unique_permalink
+    @m = MockModel.new
+    @m.title = 'foo'
+    @m.validate
+    assert_equal 'foo-2', @m.permalink
+    
+    @m.title = 'bar'
+    @m.permalink = nil
+    @m.validate
+    assert_equal 'bar-3', @m.permalink
+  end
+  
+  def test_should_create_unique_permalink_when_assigned_directly
     @m = MockModel.new
     @m.permalink = 'foo'
     @m.validate
     assert_equal 'foo-2', @m.permalink
     
+    # should always check itself for uniqueness when not respond_to?(:permalink_changed?)
     @m.permalink = 'bar'
     @m.validate
     assert_equal 'bar-3', @m.permalink
@@ -264,6 +297,21 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.permalink = 'bar-2'
     @m.validate
     assert_equal 'bar-2', @m.permalink
+  end
+
+  def test_should_check_itself_for_unique_permalink_if_permalink_field_changed
+    @m = PermalinkChangeableMockModel.new
+    @m.permalink_will_change!
+    @m.permalink = 'foo'
+    @m.validate
+    assert_equal 'foo-2', @m.permalink
+  end
+
+  def test_should_not_check_itself_for_unique_permalink_if_permalink_field_not_changed
+    @m = PermalinkChangeableMockModel.new
+    @m.permalink = 'foo'
+    @m.validate
+    assert_equal 'foo', @m.permalink
   end
   
   def test_should_create_unique_scoped_permalink
@@ -361,11 +409,12 @@ class PermalinkFuTest < Test::Unit::TestCase
     assert_equal 'unchanged', @m.read_attribute(:permalink)
   end
   
-  def test_should_update_permalink_if_field_changed
-    @m = OverrideModel.new
+  def test_should_not_update_permalink_without_update_set_even_if_field_changed
+    @m = ChangedWithoutUpdateModel.new
     @m.title = 'the permalink'
+    @m.permalink = 'unchanged'
     @m.validate
-    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+    assert_equal 'unchanged', @m.read_attribute(:permalink)
   end
   
   def test_should_update_permalink_if_changed_method_does_not_exist
@@ -391,7 +440,7 @@ class PermalinkFuTest < Test::Unit::TestCase
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
 
-  def test_should_update_permalink_if_the_title_is_nil
+  def test_should_assign_a_random_permalink_if_the_title_is_nil
     @m = NoChangeModel.new
     @m.title = nil
     @m.validate
@@ -400,7 +449,7 @@ class PermalinkFuTest < Test::Unit::TestCase
   end
 
   def test_should_update_permalink_the_first_time_the_title_is_set
-    @m = ChangedModel.new
+    @m = ChangedWithoutUpdateModel.new
     @m.title = "old title"
     @m.validate
     assert_equal "old-title", @m.read_attribute(:permalink)
@@ -410,8 +459,8 @@ class PermalinkFuTest < Test::Unit::TestCase
   end
 
   def test_should_not_update_permalink_if_already_set_even_if_title_changed
-    @m = ChangedModel.new
-    @m.permalink = "old-permalink"
+    @m = ChangedWithoutUpdateModel.new
+    @m.permalink = "old permalink"
     @m.title = "new title"
     @m.validate
     assert_equal "old-permalink", @m.read_attribute(:permalink)

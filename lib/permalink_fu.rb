@@ -54,7 +54,7 @@ module PermalinkFu
     #     has_permalink :title, :unique => false
     #
     #     # update the permalink every time the attribute(s) change
-    #     # (relies on _changed? methods to function effectively)
+    #     # without _changed? methods (old rails version) this will rewrite the permalink every time
     #     has_permalink :title, :update => true
     #
     #   end
@@ -109,12 +109,15 @@ module PermalinkFu
   protected
     def create_common_permalink
       return unless should_create_permalink?
-      if read_attribute(self.class.permalink_field).blank? || self.class.permalink_options[:update]
+      if read_attribute(self.class.permalink_field).blank? || permalink_fields_changed?
         send("#{self.class.permalink_field}=", create_permalink_for(self.class.permalink_attributes))
       end
-      if read_attribute(self.class.permalink_field).blank?
-        send("#{self.class.permalink_field}=", PermalinkFu.random_permalink)
-      end
+
+      # Quit now if we have the changed method available and nothing has changed
+      permalink_changed = "#{self.class.permalink_field}_changed?"
+      return if respond_to?(permalink_changed) && !send(permalink_changed)
+
+      # Otherwise find the limit and crop the permalink
       limit   = self.class.columns_hash[self.class.permalink_field].limit
       base    = send("#{self.class.permalink_field}=", read_attribute(self.class.permalink_field)[0..limit - 1])
       [limit, base]
@@ -122,7 +125,7 @@ module PermalinkFu
 
     def create_unique_permalink
       limit, base = create_common_permalink
-      return if limit.nil?
+      return if limit.nil? # nil if the permalink has not changed or :if/:unless fail
       counter = 1
       # oh how i wish i could use a hash for conditions
       conditions = ["#{self.class.permalink_field} = ?", base]
@@ -149,13 +152,12 @@ module PermalinkFu
     end
 
     def create_permalink_for(attr_names)
-      attr_names.collect { |attr_name| send(attr_name).to_s } * " "
+      str = attr_names.collect { |attr_name| send(attr_name).to_s } * " "
+      str.blank? ? PermalinkFu.random_permalink : str
     end
 
   private
     def should_create_permalink?
-      existing_value = send("#{self.class.permalink_field}")
-      return false unless permalink_fields_changed? || existing_value.blank?
       if self.class.permalink_options[:if]
         evaluate_method(self.class.permalink_options[:if])
       elsif self.class.permalink_options[:unless]
@@ -165,7 +167,9 @@ module PermalinkFu
       end
     end
 
+    # Don't even check _changed? methods unless :update is set
     def permalink_fields_changed?
+      return false unless self.class.permalink_options[:update]
       self.class.permalink_attributes.any? do |attribute|
         changed_method = "#{attribute}_changed?"
         respond_to?(changed_method) ? send(changed_method) : true
