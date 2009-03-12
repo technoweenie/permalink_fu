@@ -448,6 +448,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     assert @m.read_attribute(:permalink).size > 0
   end
 
+  def test_should_assign_a_random_permalink_if_the_title_has_no_permalinkable_characters
+    @m = NoChangeModel.new
+    @m.title = '////'
+    @m.validate
+    assert_not_nil @m.read_attribute(:permalink)
+    assert @m.read_attribute(:permalink).size > 0
+  end
+
   def test_should_update_permalink_the_first_time_the_title_is_set
     @m = ChangedWithoutUpdateModel.new
     @m.title = "old title"
