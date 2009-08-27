@@ -6,7 +6,7 @@ begin
   require 'ruby-debug'
   Debugger.start
 rescue LoadError
-  puts "no ruby debugger"
+  # no ruby debugger
 end
 
 gem 'activerecord'
@@ -18,7 +18,7 @@ class BaseModel < ActiveRecord::Base
   @@columns ||= []
   
   def self.column(name, sql_type = nil, default = nil, null = true)
-    columns << ActiveRecord::ConnectionAdapters::Column.new(name.to_s, default, sql_type.to_s, null)
+    columns << ActiveRecord::ConnectionAdapters::Column.new(name.to_s, default, sql_type, null)
   end
   
   def self.exists?(*args)
@@ -31,6 +31,17 @@ class BaseModel < ActiveRecord::Base
   column :extra,      'varchar(100)'
   column :foo,        'varchar(100)'
   
+end
+
+class ClassModel < BaseModel
+  has_permalink :title
+end
+
+class SubClassHasPermalinkModel < ClassModel
+  has_permalink [:title, :extra]
+end
+
+class SubClassNoPermalinkModel < ClassModel
 end
 
 class MockModel < BaseModel

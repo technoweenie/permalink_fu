@@ -12,6 +12,37 @@ class PermalinkFuTest < Test::Unit::TestCase
 
   @@extra = { 'some-)()()-ExtRa!/// .data==?>    to \/\/test'.freeze => 'some-extra-data-to-test'.freeze }
 
+  def test_basemodel
+    @m = BaseModel.new
+    assert @m.valid?
+    assert_equal @m.id, nil
+    assert_equal @m.title, nil
+    assert_equal @m.permalink, nil
+    assert_equal @m.extra, nil
+    assert_equal @m.foo, nil
+  end
+
+  def test_set_new_permalink_attributes_on_sub_class
+    @m = ClassModel.new
+    @m.title = 'foo'
+    @m.extra = 'bar'
+    assert @m.valid?
+    assert_equal @m.permalink, 'foo'
+    
+    @m = SubClassHasPermalinkModel.new
+    @m.title = 'foo'
+    @m.extra = 'bar'
+    assert @m.valid?
+    assert_equal @m.permalink, 'foo-bar'
+  end
+  
+  def test_should_not_inherit_permalink_attributes
+    @m = SubClassNoPermalinkModel.new
+    @m.title = 'foo'
+    assert @m.valid?
+    assert_equal @m.permalink, nil
+  end
+
   def test_should_escape_permalinks
     @@samples.each do |from, to|
       assert_equal to, PermalinkFu.escape(from)
