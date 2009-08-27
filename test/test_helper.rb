@@ -9,93 +9,28 @@ rescue LoadError
   puts "no ruby debugger"
 end
 
-gem 'activesupport'
-require 'active_support/core_ext/blank'
+gem 'activerecord'
+require 'active_record'
+require File.join(File.dirname(__FILE__), '../init')
 
-class FauxColumn < Struct.new(:limit)
-end
-
-class BaseModel
-  def self.columns_hash
-    @columns_hash ||= {'permalink' => FauxColumn.new(100)}
-  end
-
-  def self.inherited(base)
-    subclasses << base
-  end
-
-  extend PermalinkFu::PluginMethods
-  attr_accessor :id
-  attr_accessor :title
-  attr_accessor :extra
-  attr_reader   :permalink
-  attr_accessor :foo
-
-  class << self
-    attr_accessor :validation, :subclasses
-  end
-  self.subclasses = []
-
-  def self.generated_methods
-    @generated_methods ||= []
+class BaseModel < ActiveRecord::Base
+  cattr_accessor :columns
+  @@columns ||= []
+  
+  def self.column(name, sql_type = nil, default = nil, null = true)
+    columns << ActiveRecord::ConnectionAdapters::Column.new(name.to_s, default, sql_type.to_s, null)
   end
   
-  def self.primary_key
-    :id
-  end
-  
-  def self.logger
-    nil
-  end
-
-  def self.define_attribute_methods
-    return unless generated_methods.empty?
-    true
-  end
-
-  # ripped from AR
-  def self.evaluate_attribute_method(attr_name, method_definition, method_name=attr_name)
-
-    unless method_name.to_s == primary_key.to_s
-      generated_methods << method_name
-    end
-
-    begin
-      class_eval(method_definition, __FILE__, __LINE__)
-    rescue SyntaxError => err
-      generated_methods.delete(attr_name)
-      if logger
-        logger.warn "Exception occurred during reader method compilation."
-        logger.warn "Maybe #{attr_name} is not a valid Ruby identifier?"
-        logger.warn "#{err.message}"
-      end
-    end
-  end
-
   def self.exists?(*args)
     false
   end
-
-  def self.before_validation(method)
-    self.validation = method
-  end
-
-  def validate
-    send self.class.validation if self.class.validation
-    permalink
-  end
   
-  def new_record?
-    @id.nil?
-  end
+  column :id,         'int(11)'
+  column :title,      'varchar(100)'
+  column :permalink,  'varchar(100)'
+  column :extra,      'varchar(100)'
+  column :foo,        'varchar(100)'
   
-  def write_attribute(key, value)
-    instance_variable_set "@#{key}", value
-  end
-  
-  def read_attribute(key)
-    instance_variable_get "@#{key}"
-  end
 end
 
 class MockModel < BaseModel
@@ -213,7 +148,4 @@ end
 class MockModelExtra < BaseModel
   has_permalink [:title, :extra]
 end
-
-# trying to be like ActiveRecord, define the attribute methods manually
-BaseModel.subclasses.each { |c| c.send :define_attribute_methods }
 
