@@ -1,221 +1,5 @@
-require 'test/unit'
-require File.join(File.dirname(__FILE__), '../lib/permalink_fu')
-
-begin
-  require 'rubygems'
-  require 'ruby-debug'
-  Debugger.start
-rescue LoadError
-  puts "no ruby debugger"
-end
-
-gem 'activesupport'
-require 'active_support/core_ext/blank'
-
-class FauxColumn < Struct.new(:limit)
-end
-
-class BaseModel
-  def self.columns_hash
-    @columns_hash ||= {'permalink' => FauxColumn.new(100)}
-  end
-
-  def self.inherited(base)
-    subclasses << base
-  end
-
-  extend PermalinkFu::PluginMethods
-  attr_accessor :id
-  attr_accessor :title
-  attr_accessor :extra
-  attr_reader   :permalink
-  attr_accessor :foo
-
-  class << self
-    attr_accessor :validation, :subclasses
-  end
-  self.subclasses = []
-
-  def self.generated_methods
-    @generated_methods ||= []
-  end
-  
-  def self.primary_key
-    :id
-  end
-  
-  def self.logger
-    nil
-  end
-
-  def self.define_attribute_methods
-    return unless generated_methods.empty?
-    true
-  end
-
-  # ripped from AR
-  def self.evaluate_attribute_method(attr_name, method_definition, method_name=attr_name)
-
-    unless method_name.to_s == primary_key.to_s
-      generated_methods << method_name
-    end
-
-    begin
-      class_eval(method_definition, __FILE__, __LINE__)
-    rescue SyntaxError => err
-      generated_methods.delete(attr_name)
-      if logger
-        logger.warn "Exception occurred during reader method compilation."
-        logger.warn "Maybe #{attr_name} is not a valid Ruby identifier?"
-        logger.warn "#{err.message}"
-      end
-    end
-  end
-
-  def self.exists?(*args)
-    false
-  end
-
-  def self.before_validation(method)
-    self.validation = method
-  end
-
-  def validate
-    send self.class.validation if self.class.validation
-    permalink
-  end
-  
-  def new_record?
-    @id.nil?
-  end
-  
-  def write_attribute(key, value)
-    instance_variable_set "@#{key}", value
-  end
-  
-  def read_attribute(key)
-    instance_variable_get "@#{key}"
-  end
-end
-
-class MockModel < BaseModel
-  def self.exists?(conditions)
-    if conditions[1] == 'foo'   || conditions[1] == 'bar' || 
-      (conditions[1] == 'bar-2' && conditions[2] != 2)
-      true
-    else
-      false
-    end
-  end
-
-  has_permalink :title
-end
-
-class PermalinkChangeableMockModel < BaseModel
-  def self.exists?(conditions)
-    if conditions[1] == 'foo'
-      true
-    else
-      false
-    end
-  end
-
-  has_permalink :title
-
-  def permalink_changed?
-    @permalink_changed
-  end
-
-  def permalink_will_change!
-    @permalink_changed = true
-  end
-end
-
-class CommonMockModel < BaseModel
-  def self.exists?(conditions)
-    false # oh noes
-  end
-
-  has_permalink :title, :unique => false
-end
-
-class ScopedModel < BaseModel
-  def self.exists?(conditions)
-    if conditions[1] == 'foo' && conditions[2] != 5
-      true
-    else
-      false
-    end
-  end
-
-  has_permalink :title, :scope => :foo
-end
-
-class ScopedModelForNilScope < BaseModel
-  def self.exists?(conditions)
-    (conditions[0] == 'permalink = ? and foo IS NULL') ? (conditions[1] == 'ack') : false
-  end
-
-  has_permalink :title, :scope => :foo
-end
-
-class OverrideModel < BaseModel
-  has_permalink :title
-  
-  def permalink
-    'not the permalink'
-  end
-end
-
-class ChangedWithoutUpdateModel < BaseModel
-  has_permalink :title  
-  def title_changed?; true; end
-end
-
-class ChangedWithUpdateModel < BaseModel
-  has_permalink :title, :update => true 
-  def title_changed?; true; end
-end
-
-class NoChangeModel < BaseModel
-  has_permalink :title, :update => true
-  def title_changed?; false; end
-end
-
-class IfProcConditionModel < BaseModel
-  has_permalink :title, :if => Proc.new { |obj| false }
-end
-
-class IfMethodConditionModel < BaseModel
-  has_permalink :title, :if => :false_method
-  
-  def false_method; false; end
-end
-
-class IfStringConditionModel < BaseModel
-  has_permalink :title, :if => 'false'
-end
-
-class UnlessProcConditionModel < BaseModel
-  has_permalink :title, :unless => Proc.new { |obj| false }
-end
-
-class UnlessMethodConditionModel < BaseModel
-  has_permalink :title, :unless => :false_method
-  
-  def false_method; false; end
-end
-
-class UnlessStringConditionModel < BaseModel
-  has_permalink :title, :unless => 'false'
-end
-
-class MockModelExtra < BaseModel
-  has_permalink [:title, :extra]
-end
-
-# trying to be like ActiveRecord, define the attribute methods manually
-BaseModel.subclasses.each { |c| c.send :define_attribute_methods }
+# encoding: UTF-8
+require File.join(File.dirname(__FILE__), 'test_helper')
 
 class PermalinkFuTest < Test::Unit::TestCase
   @@samples = {
@@ -228,6 +12,37 @@ class PermalinkFuTest < Test::Unit::TestCase
 
   @@extra = { 'some-)()()-ExtRa!/// .data==?>    to \/\/test'.freeze => 'some-extra-data-to-test'.freeze }
 
+  def test_basemodel
+    @m = BaseModel.new
+    assert @m.valid?
+    assert_equal @m.id, nil
+    assert_equal @m.title, nil
+    assert_equal @m.permalink, nil
+    assert_equal @m.extra, nil
+    assert_equal @m.foo, nil
+  end
+
+  def test_set_new_permalink_attributes_on_sub_class
+    @m = ClassModel.new
+    @m.title = 'foo'
+    @m.extra = 'bar'
+    assert @m.valid?
+    assert_equal @m.permalink, 'foo'
+    
+    @m = SubClassHasPermalinkModel.new
+    @m.title = 'foo'
+    @m.extra = 'bar'
+    assert @m.valid?
+    assert_equal @m.permalink, 'foo-bar'
+  end
+  
+  def test_should_not_inherit_permalink_attributes
+    @m = SubClassNoPermalinkModel.new
+    @m.title = 'foo'
+    assert @m.valid?
+    assert_equal @m.permalink, nil
+  end
+
   def test_should_escape_permalinks
     @@samples.each do |from, to|
       assert_equal to, PermalinkFu.escape(from)
@@ -238,7 +53,8 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = MockModel.new
     @@samples.each do |from, to|
       @m.title = from; @m.permalink = nil
-      assert_equal to, @m.validate
+      assert @m.valid?
+      assert_equal to, @m.permalink
     end
   end
   
@@ -246,7 +62,8 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = MockModel.new
     @@samples.each do |from, to|
       @m.title = 'whatever'; @m.permalink = from
-      assert_equal to, @m.validate
+      assert @m.valid?
+      assert_equal to, @m.permalink
     end
   end
   
@@ -255,7 +72,8 @@ class PermalinkFuTest < Test::Unit::TestCase
     @@samples.each do |from, to|
       @@extra.each do |from_extra, to_extra|
         @m.title = from; @m.extra = from_extra; @m.permalink = nil
-        assert_equal "#{to}-#{to_extra}", @m.validate
+        assert @m.valid?
+        assert_equal "#{to}-#{to_extra}", @m.permalink
       end
     end
   end
@@ -263,39 +81,42 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_create_unique_permalink
     @m = MockModel.new
     @m.title = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo-2', @m.permalink
     
     @m.title = 'bar'
     @m.permalink = nil
-    @m.validate
+    assert @m.valid?
     assert_equal 'bar-3', @m.permalink
   end
   
   def test_should_create_unique_permalink_when_assigned_directly
     @m = MockModel.new
     @m.permalink = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo-2', @m.permalink
     
     # should always check itself for uniqueness when not respond_to?(:permalink_changed?)
     @m.permalink = 'bar'
-    @m.validate
+    assert @m.valid?
     assert_equal 'bar-3', @m.permalink
   end
   
   def test_should_common_permalink_if_unique_is_false
     @m = CommonMockModel.new
     @m.permalink = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo', @m.permalink
   end
   
-  def test_should_not_check_itself_for_unique_permalink
+  def test_should_not_check_itself_for_unique_permalink_if_unchanged
     @m = MockModel.new
     @m.id = 2
     @m.permalink = 'bar-2'
-    @m.validate
+    @m.instance_eval do
+      @changed_attributes = {}
+    end
+    assert @m.valid?
     assert_equal 'bar-2', @m.permalink
   end
 
@@ -303,88 +124,90 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = PermalinkChangeableMockModel.new
     @m.permalink_will_change!
     @m.permalink = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo-2', @m.permalink
   end
 
   def test_should_not_check_itself_for_unique_permalink_if_permalink_field_not_changed
     @m = PermalinkChangeableMockModel.new
     @m.permalink = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo', @m.permalink
   end
   
   def test_should_create_unique_scoped_permalink
     @m = ScopedModel.new
     @m.permalink = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo-2', @m.permalink
   
     @m.foo = 5
     @m.permalink = 'foo'
-    @m.validate
+    assert @m.valid?
     assert_equal 'foo', @m.permalink
   end
   
   def test_should_limit_permalink
-    @old = MockModel.columns_hash['permalink'].limit
-    MockModel.columns_hash['permalink'].limit = 2
+    @old = MockModel.columns_hash['permalink'].instance_variable_get(:@limit)
+    MockModel.columns_hash['permalink'].instance_variable_set(:@limit, 2)
     @m   = MockModel.new
     @m.title = 'BOO'
-    assert_equal 'bo', @m.validate
+    assert @m.valid?
+    assert_equal 'bo', @m.permalink
   ensure
-    MockModel.columns_hash['permalink'].limit = @old
+    MockModel.columns_hash['permalink'].instance_variable_set(:@limit, @old)
   end
   
   def test_should_limit_unique_permalink
-    @old = MockModel.columns_hash['permalink'].limit
-    MockModel.columns_hash['permalink'].limit = 3
+    @old = MockModel.columns_hash['permalink'].instance_variable_get(:@limit)
+    MockModel.columns_hash['permalink'].instance_variable_set(:@limit, 3)
     @m   = MockModel.new
     @m.title = 'foo'
-    assert_equal 'f-2', @m.validate
+    assert @m.valid?
+    assert_equal 'f-2', @m.permalink
   ensure
-    MockModel.columns_hash['permalink'].limit = @old
+    MockModel.columns_hash['permalink'].instance_variable_set(:@limit, @old)
   end
   
   def test_should_abide_by_if_proc_condition
     @m = IfProcConditionModel.new
     @m.title = 'dont make me a permalink'
-    @m.validate
+    assert @m.valid?
     assert_nil @m.permalink
   end
   
   def test_should_abide_by_if_method_condition
     @m = IfMethodConditionModel.new
     @m.title = 'dont make me a permalink'
-    @m.validate
+    assert @m.valid?
     assert_nil @m.permalink
   end
   
   def test_should_abide_by_if_string_condition
     @m = IfStringConditionModel.new
     @m.title = 'dont make me a permalink'
-    @m.validate
+    assert @m.valid?
     assert_nil @m.permalink
   end
   
   def test_should_abide_by_unless_proc_condition
     @m = UnlessProcConditionModel.new
     @m.title = 'make me a permalink'
-    @m.validate
+    assert @m.valid?
     assert_not_nil @m.permalink
   end
   
   def test_should_abide_by_unless_method_condition
     @m = UnlessMethodConditionModel.new
     @m.title = 'make me a permalink'
-    @m.validate
+    assert @m.valid?
     assert_not_nil @m.permalink
   end
   
   def test_should_abide_by_unless_string_condition
     @m = UnlessStringConditionModel.new
     @m.title = 'make me a permalink'
-    @m.validate
+    assert @m.valid?
     assert_not_nil @m.permalink
   end
   
@@ -397,7 +220,7 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_create_permalink_from_attribute_not_attribute_accessor
     @m = OverrideModel.new
     @m.title = 'the permalink'
-    @m.validate
+    assert @m.valid?
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
   
@@ -405,7 +228,7 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = NoChangeModel.new
     @m.title = 'the permalink'
     @m.permalink = 'unchanged'
-    @m.validate
+    assert @m.valid?
     assert_equal 'unchanged', @m.read_attribute(:permalink)
   end
   
@@ -413,14 +236,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = ChangedWithoutUpdateModel.new
     @m.title = 'the permalink'
     @m.permalink = 'unchanged'
-    @m.validate
+    assert @m.valid?
     assert_equal 'unchanged', @m.read_attribute(:permalink)
   end
   
   def test_should_update_permalink_if_changed_method_does_not_exist
     @m = OverrideModel.new
     @m.title = 'the permalink'
-    @m.validate
+    assert @m.valid?
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
 
@@ -428,7 +251,7 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = NoChangeModel.new
     @m.title = 'the permalink'
     @m.permalink = nil
-    @m.validate
+    assert @m.valid?
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
 
@@ -436,14 +259,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = NoChangeModel.new
     @m.title = 'the permalink'
     @m.permalink = ''
-    @m.validate
+    assert @m.valid?
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
   end
 
   def test_should_assign_a_random_permalink_if_the_title_is_nil
     @m = NoChangeModel.new
     @m.title = nil
-    @m.validate
+    assert @m.valid?
     assert_not_nil @m.read_attribute(:permalink)
     assert @m.read_attribute(:permalink).size > 0
   end
@@ -451,7 +274,7 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_assign_a_random_permalink_if_the_title_has_no_permalinkable_characters
     @m = NoChangeModel.new
     @m.title = '////'
-    @m.validate
+    assert @m.valid?
     assert_not_nil @m.read_attribute(:permalink)
     assert @m.read_attribute(:permalink).size > 0
   end
@@ -459,10 +282,10 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_update_permalink_the_first_time_the_title_is_set
     @m = ChangedWithoutUpdateModel.new
     @m.title = "old title"
-    @m.validate
+    assert @m.valid?
     assert_equal "old-title", @m.read_attribute(:permalink)
     @m.title = "new title"
-    @m.validate
+    assert @m.valid?
     assert_equal "old-title", @m.read_attribute(:permalink)
   end
 
@@ -470,17 +293,17 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m = ChangedWithoutUpdateModel.new
     @m.permalink = "old permalink"
     @m.title = "new title"
-    @m.validate
+    assert @m.valid?
     assert_equal "old-permalink", @m.read_attribute(:permalink)
   end
 
   def test_should_update_permalink_every_time_the_title_is_changed
     @m = ChangedWithUpdateModel.new
     @m.title = "old title"
-    @m.validate
+    assert @m.valid?
     assert_equal "old-title", @m.read_attribute(:permalink)
     @m.title = "new title"
-    @m.validate
+    assert @m.valid?
     assert_equal "new-title", @m.read_attribute(:permalink)
   end
   
@@ -488,13 +311,13 @@ class PermalinkFuTest < Test::Unit::TestCase
     s1 = ScopedModelForNilScope.new
     s1.title = 'ack'
     s1.foo = 3
-    s1.validate
+    assert s1.valid?
     assert_equal 'ack', s1.permalink
     
     s2 = ScopedModelForNilScope.new
     s2.title = 'ack'
     s2.foo = nil
-    s2.validate
+    assert s2.valid?
     assert_equal 'ack-2', s2.permalink
   end
 end

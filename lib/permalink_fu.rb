@@ -103,7 +103,7 @@ module PermalinkFu
       class << base
         alias_method :define_attribute_methods_without_permalinks, :define_attribute_methods
         alias_method :define_attribute_methods, :define_attribute_methods_with_permalinks
-      end
+      end unless base.respond_to?(:define_attribute_methods_without_permalinks)
     end
 
     def define_attribute_methods_with_permalinks
@@ -168,7 +168,9 @@ module PermalinkFu
 
   private
     def should_create_permalink?
-      if self.class.permalink_options[:if]
+      if self.class.permalink_field.blank?
+        false
+      elsif self.class.permalink_options[:if]
         evaluate_method(self.class.permalink_options[:if])
       elsif self.class.permalink_options[:unless]
         !evaluate_method(self.class.permalink_options[:unless])
