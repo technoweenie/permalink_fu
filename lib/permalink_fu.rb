@@ -130,7 +130,7 @@ module PermalinkFu
       # oh how i wish i could use a hash for conditions
       conditions = ["#{self.class.permalink_field} = ?", base]
       unless new_record?
-        conditions.first << " and id != ?"
+        conditions.first << " and ((id != ?) OR (id IS NULL))"
         conditions       << id
       end
       if self.class.permalink_options[:scope]
